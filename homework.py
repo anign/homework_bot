@@ -9,7 +9,6 @@ import telegram
 from dotenv import load_dotenv
 
 load_dotenv()
-handler = logging.StreamHandler()
 
 PRACTICUM_TOKEN = os.getenv('PRACT_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TG_BOT_TOKEN')

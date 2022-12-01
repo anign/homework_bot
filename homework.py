@@ -66,14 +66,14 @@ def get_api_answer(timestamp):
         )
         if homework.status_code != HTTPStatus.OK:
             logging.error('Эндпоинт недоступен!')
-            homework.raise_for_status()
+            requests.raise_for_status()
         else:
             logging.info('Status Code OK!')
         return homework.json()
-    except requests.exceptions.RequestException:
+    except requests.RequestException as error:
         message = 'API не отвечает!'
         logging.error(message)
-        raise message
+        raise error(message)
 
 
 def check_response(response):
@@ -94,7 +94,7 @@ def parse_status(homework):
     if 'status' and 'homework_name' not in homework:
         raise KeyError('Homeworks or status отсутствует!')
     if not isinstance(homework.get('status'), str):
-        raise ('Status not a STR type!')
+        raise TypeError('Status not a STR type!')
     homework_name = homework.get('homework_name')
     homework_status = homework.get('status')
     if homework_status not in HOMEWORK_VERDICTS:
@@ -109,35 +109,24 @@ def main():
     """Основная логика работы бота."""
     timestamp = int(time.time())
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    if check_tokens():
-        while True:
-            try:
-                response = get_api_answer(timestamp)
-                homework = check_response(response)
-                if len(homework) > 0:
-                    send_message(bot, parse_status(homework[0]))
-                    logging.debug('Сообщение отправлено в Телеграм')
-                else:
-                    logging.debug('Новых статусов не обнаружено!')
-                time.sleep(RETRY_PERIOD)
-            except Exception as error:
-                send_message(bot, error)
-                logging.error(
-                    f'Program error: {error}!'
-                )
-            finally:
-                time.sleep(RETRY_PERIOD)
-    else:
-        message = 'Ошибка! Не найден один' \
-                  ' или несколько токенов! Остановка программы!'
+    if not check_tokens():
+        sys.exit(1)
+    while True:
         try:
-            send_message(bot, message)
-            logging.debug(
-                f'Бот отправил сообщение "{message}"'
+            response = get_api_answer(timestamp)
+            homework = check_response(response)
+            if len(homework) > 0:
+                send_message(bot, parse_status(homework[0]))
+                logging.debug('Сообщение отправлено в Телеграм')
+            else:
+                logging.debug('Новых статусов не обнаружено!')
+        except Exception as error:
+            logging.error(
+                f'Program error: {error}!'
             )
+            send_message(bot, error)
         finally:
-            logging.error(message)
-            sys.exit
+            time.sleep(RETRY_PERIOD)
 
 
 if __name__ == '__main__':
